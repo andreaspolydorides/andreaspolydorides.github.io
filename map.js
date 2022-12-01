@@ -42,17 +42,17 @@ var mobility;
 var visual;
 var hearing;
 var cognitive;
-// country currently in focus, used for refreshing modal
-var focused_country;
+// country currently in focus, used for refreshing modal and setting the info box
+var focused_country = "";
 
 function getColor(d) {
-    return d > 7 ? '#3f007d' :
-           d > 6  ? '#54278f' :
-           d > 5  ? '#6a51a3' :
-           d > 4  ? '#807dba' :
-           d > 3  ? '#9e9ac8' :
-           d > 2  ? '#bcbddc' :
-           d > 1  ? '#dadaeb' :
+    return d > 30 ? '#3f007d' :
+           d > 20  ? '#54278f' :
+           d > 15  ? '#6a51a3' :
+           d > 9  ? '#807dba' :
+           d > 6  ? '#9e9ac8' :
+           d > 4  ? '#bcbddc' :
+           d > 2  ? '#dadaeb' :
            d > 0  ? '#efedf5' :
                     '#fcfbfd';
 }
@@ -63,6 +63,7 @@ var mobility_inno = new Object();
 var visual_inno = new Object();
 var hearing_inno = new Object();
 var cognitive_inno = new Object();
+
 submitted_innos.innovations.forEach(function(item) {
     if (!(item["Country (of Origin)"] in inno_per_country)) {
         inno_per_country[item["Country (of Origin)"]] = 1;
@@ -93,6 +94,7 @@ submitted_innos.innovations.forEach(function(item) {
     }
 });
 
+active_inno = inno_per_country;
 
 // listeners
 function highlightFeature(e) {
@@ -117,7 +119,7 @@ function zoomToFeature(e) {
     focused_country = layer.feature.properties.ADMIN;
     map.fitBounds(e.target.getBounds());
     // and also set that country's quick info box and prepare modal
-    info.update(layer.feature.properties);
+    info.update(active_inno);
     // update the modal that could pop up
     // make the title be the country name
     document.getElementById("countryModalHeader").innerHTML = '<h1 class="modal-title fs-5" id="countryModalLabel">' + 
@@ -220,23 +222,32 @@ var layerControl = L.control.layers(overlays).addTo(map);
 map.on('baselayerchange', function (e) {
     // new layer selected
     active_layer = e.layer;
-    switch(active_layer.stamp()) {
+    console.log(e.target);
+    console.log(active_layer);
+    switch(active_layer._leaflet_id) {
         case(92):
             active_impairment = "all";
+            active_inno = inno_per_country;
             break;
         case(339):
             active_impairment = "mobility";
+            active_inno = mobility_inno;
             break;
         case(582):
             active_impairment = "visual";
+            active_inno = visual_inno;
             break;
         case(825):
             active_impairment = "hearing";
+            active_inno = hearing_inno;
             break;
         case(1068):
             active_impairment = "cognitive";
+            active_inno = cognitive_inno;
             break;
     };
+    console.log(active_impairment);
+    info.update(active_inno);
 });
 
 var info = L.control({
@@ -250,11 +261,11 @@ info.onAdd = function (map) {
 };
 
 // method that we will use to update the control based on feature properties passed
-info.update = function (props) {
-    this._div.innerHTML = '<h4>Innovation Data</h4>' +  (props ?
-        '<b>' + props.ADMIN + '</b><br />' + (!(props.ADMIN in inno_per_country) ? 'No innovations listed' + '<br />' + 
+info.update = function (inno_list) {
+    this._div.innerHTML = '<h4>Innovation Data</h4>' +  (focused_country ?
+        '<b>' + focused_country + '</b><br />' + (!(focused_country in inno_list) ? 'No innovations listed' + '<br />' + 
         '<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#countryModal" disabled>Detailed view</button>'
-        : inno_per_country[props.ADMIN].toString() + ' innovations listed' + '<br />' + 
+        : inno_list[focused_country].toString() + ' innovations listed' + '<br />' + 
         '<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#countryModal">Detailed view</button>')
         : 'Click on a country');
 };
@@ -426,8 +437,48 @@ function setModalOverviewContent(innovations) {
     document.getElementById("nav-overview").innerHTML = overviewModal;
 }
 
-function setModalTrendContent() {
+function setModalTrendContent(innovations) {
+    let founded = new Object();
+    innovations.forEach(function(item) {
+        if (!(item["Founding Year"] in founded)) {
+            founded[item["Founding Year"]] = 1;
+        }
+        else {
+            founded[item["Founding Year"]] += 1;
+        }
+    });
+    console.log(founded);
 
+    document.getElementById('trendCanvasPlaceholder').innerHTML = '<canvas id="trendChart"></canvas>';
+    const trendChart = document.getElementById('trendChart');
+
+    new Chart(trendChart, {
+      type: 'line',
+      data: {
+        labels: Object.keys(founded),
+        datasets: [{
+            label: "Year Founded",
+            data: Object.values(founded)
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+            legend: {
+              position: 'top',
+            },
+            title: {
+              display: true,
+              text: 'Line graph of foundation year for AT innovations'
+            }
+        },
+        scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+      }
+    });
 }
 
 function setModalStartupContent(innovations) {
@@ -436,59 +487,57 @@ function setModalStartupContent(innovations) {
     // [ existence, survival, disengagement, success, growth, take-off, maturity]
     data = [0,0,0,0,0,0,0];
     innovations.forEach(function(item) {
-        let x = item["Startup Stage(Existence, Survival, Disengagement, Success, Growth, Take-off, Maturity)"].toLowerCase();
-        switch(x) {
-            case "existence":
-                data[0] += 1;
-                break;
-            case "survival":
-                data[1] += 1;
-                break;
-            case "disengagement":
-                data[2] += 1;
-                break;
-            case "success":
-                data[3] += 1;
-                break;
-            case "growth":
-                data[4] += 1;
-                break;
-            case "take-off":
-                data[5] += 1;
-                break;
-            case "maturity":
-                data[6] += 1;
-                break;
-            default:
-                break;
-        };
+        let x = item["Startup Stage (Existence, Survival, Disengagement, Success, Growth, Take-off, Maturity)"].toLowerCase();
+        if (x.includes("existence")) {
+            data[0] += 1;
+        }
+        else if (x.includes("survival")) {
+            data[1] += 1;
+        }
+        else if (x.includes("disengagement")) {
+            data[2] += 1;
+        }
+        else if (x.includes("success")) {
+            data[3] += 1;
+        }
+        else if (x.includes("growth")) {
+            data[4] += 1;
+        }
+        else if (x.includes("take-off") || x.includes("takeoff")) {
+            data[5] += 1;
+        }
+        else if (x.includes("maturity")) {
+            data[6] += 1;
+        }
     });
 
+
+    document.getElementById('startupCanvasPlaceholder').innerHTML = '<canvas id="startupChart"></canvas>';
     const startupChart = document.getElementById('startupChart');
 
     new Chart(startupChart, {
-      type: 'bar',
+      type: 'pie',
       data: {
         labels: ['Existence', 'Survival', 'Disengagement', 'Success', 'Growth', 'Take-off', 'Maturity'],
         datasets: [{
-          label: 'Startup Stage',
-          data: data,
-          borderWidth: 1
+          data: data
         }]
       },
       options: {
-        scales: {
-          y: {
-            beginAtZero: true
-          }
+        responsive: true,
+        plugins: {
+            legend: {
+              position: 'top',
+            },
+            title: {
+              display: true,
+              text: 'Start-up stage for listed innovations'
+            }
         }
       }
     });
 }
 
-
 alert("Welcome! \n Please note that this is a work in progress. This interactive webmap on Assistive Technology innovations around the world will be officially published when all features are added and crucially, when it is accessible to screen readers. \nIn the meantime, have a look around and post any bugs to the github page");
-
-
 
 
