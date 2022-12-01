@@ -486,6 +486,8 @@ function setModalStartupContent(innovations) {
     });
 }
 
+alert("Welcome! This is a work in progress interactive webmap on Assistive Technology innovations around the world. This website will be officially published when more features are implemented, and crucially, when it becomes accessible for use with screen readers!");
+
 
 
 
