@@ -486,8 +486,8 @@ function setModalStartupContent(innovations) {
     });
 }
 
-issueURL = "https://github.com/andreaspolydorides/andreaspolydorides.github.io/issues";
-alert("Welcome! \n Please note that this is a work in progress. This interactive webmap on Assistive Technology innovations around the world will be officially published when all features are added and crucially, when it is accessible to screen readers. \nIn the meantime, have a look around and mention any bugs to " + issueTracker.italics());
+
+alert("Welcome! \n Please note that this is a work in progress. This interactive webmap on Assistive Technology innovations around the world will be officially published when all features are added and crucially, when it is accessible to screen readers. \nIn the meantime, have a look around and post any bugs to the github page");
 
 
 
